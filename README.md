@@ -27,7 +27,8 @@ It then backtests that markup on every day in the sample and compares it with a 
 **Takeaways**
 - The markup a currency needs tracks its volatility. MXN is about 4× as volatile as INR, so it needs about 0.57 points more markup than the 0.8% target. INR needs no extra markup beyond the target.
 - In every currency, a volatility-based markup still undercuts a flat 1.5% bank markup, saving customers about $1.33–$7.00 per $1,000. In-sample, the provider still averages a margin at or above 0.8%. Out of sample, EUR fell just short, at 0.77% in 2025.
-- A flat markup ignores risk. At 1.5%, the provider gives up price competitiveness in low-volatility currencies like INR and CAD, but has the least margin of safety in MXN.
+- A flat markup ignores risk. At 1.5%, the provider gives up price competitiveness in low-volatility currencies like INR and CAD (0.70 and 0.64 points above the required markup). In MXN it has the smallest cushion over the required markup, only 0.13 points.
+- MXN's 1.37% is lower than its volatility alone suggests. A normal-distribution estimate (1.645 × 12.3% × √(2/252)) gives about 1.8%. The model instead uses the actual 5th percentile of 2-day moves. MXN's volatility comes largely from a few large spikes, which raise volatility more than they move the 5th percentile.
 
 ## Out-of-sample test (fit 2023–2024, test 2025)
 
