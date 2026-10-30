@@ -27,6 +27,23 @@ It then backtests that markup on every day in the sample and compares it with a 
 - In every currency, a volatility-based markup still undercuts a flat 1.5% bank markup, saving customers about $1.33–$7.00 per $1,000. The provider still averages a margin at or above 0.8%.
 - A flat markup ignores risk. At 1.5%, the provider gives up price competitiveness in low-volatility currencies like INR and CAD, but has the least margin of safety in MXN.
 
+## Out-of-sample test (fit 2023–2024, test 2025)
+
+The results above are fitted and backtested on the same data. To check that the markups hold up on data the model hasn't seen, I fitted them on 2023-01-02 to 2024-12-27 only, then applied them unchanged to 2025-01-02 to 2025-09-29 (190 quotes).
+
+| Currency | Markup fitted on 2023–24 | Days with a loss, 2023–24 | Days with a loss, 2025 | Mean margin, 2025 |
+|---|---|---|---|---|
+| EUR | 0.91% | 5.1% | 11.6% | 0.77% |
+| GBP | 0.96% | 5.1% | 10.5% | 0.87% |
+| CAD | 0.85% | 5.1% | 5.3% | 0.82% |
+| MXN | 1.34% | 5.1% | 6.3% | 1.21% |
+| INR | 0.80% | 0.4% | 2.1% | 0.84% |
+
+**What it shows**
+- CAD, MXN and INR held up: their loss rates stayed close to the 5% limit, and their average margins stayed above 0.8%.
+- EUR and GBP did not. Their loss rates roughly doubled, and EUR's average margin slipped just below target. In 2025 the dollar fell steadily: −11.4% against EUR and −7.0% against GBP from 2024-12-31 to 2025-10-01. Most 2-day moves went against a provider selling those currencies.
+- The lesson: a markup taken from a historical percentile assumes moves are random around zero. It needs re-fitting on a rolling window, or a hedge, when the currency is trending. A natural next step is to re-fit monthly on the trailing 12 months.
+
 ## Method
 
 - **Rates:** USD → X mid-market rates from the Frankfurter API, which serves ECB reference rates.
@@ -39,7 +56,7 @@ It then backtests that markup on every day in the sample and compares it with a 
 
 - Mid-market is the ECB daily reference rate, one fixing per day. The model ignores intraday moves and bid/ask spreads in the interbank market.
 - The provider stays unhedged for a fixed 2 business days, then covers at that day's mid rate. It does not hedge with forwards and does not net customer flows in opposite directions.
-- Rates in the test period follow the same distribution as rates in the sample period. The markup is fitted and backtested on the same data, so this is in-sample.
+- Future 2-day moves follow the same distribution as past ones. The main results are in-sample. The out-of-sample test above shows this assumption breaks down when the dollar is trending.
 - The model has no transfer fees, payment-rail costs, volume tiers or customer price sensitivity. "Margin" here means FX margin only.
 - The 1.5% competitor markup is an illustrative bank benchmark, not a quote observed from any specific firm.
 - Every transfer is the same size, and transfers happen evenly across days.
@@ -48,12 +65,12 @@ It then backtests that markup on every day in the sample and compares it with a 
 
 ```bash
 pip install pandas numpy matplotlib
-python fx_pricing_analysis.py --start 2023-01-01 --end 2025-10-01 --currencies EUR GBP CAD MXN INR --target-margin 0.008 --competitor-markup 0.015
+python fx_pricing_analysis.py --start 2023-01-01 --end 2025-10-01 --currencies EUR GBP CAD MXN INR --target-margin 0.008 --competitor-markup 0.015 --train-end 2024-12-31
 ```
 
-Optional settings: `--holding-days` (default 2), `--confidence` (default 0.95), `--output` (default `output`). Use `--demo` to run on synthetic rates if you only want to confirm the script works.
+Optional settings: `--holding-days` (default 2), `--confidence` (default 0.95), `--train-end` (no default; omit it to skip the out-of-sample test), `--output` (default `output`). Use `--demo` to run on synthetic rates if you only want to confirm the script works.
 
-Outputs go in `output/`: `pricing_table.csv`, `fx_rates.csv`, `markup_by_currency.png` and `rolling_volatility.png`.
+Outputs go in `output/`: `pricing_table.csv`, `out_of_sample.csv`, `fx_rates.csv`, `markup_by_currency.png` and `rolling_volatility.png`.
 
 ## Resume bullet
 
