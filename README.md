@@ -74,7 +74,3 @@ python fx_pricing_analysis.py --start 2023-01-01 --end 2025-10-01 --currencies E
 Optional settings: `--holding-days` (default 2), `--confidence` (default 0.95), `--train-end` (no default; omit it to skip the out-of-sample test), `--output` (default `output`). Use `--demo` to run on synthetic rates if you only want to confirm the script works.
 
 Outputs go in `output/`: `pricing_table.csv`, `out_of_sample.csv`, `fx_rates.csv`, `markup_by_currency.png` and `rolling_volatility.png`.
-
-## Resume bullet
-
-> Built a Python model of FX transfer pricing on 704 days of ECB rates (2023–2025) for 5 currencies. It sets risk-adjusted markups of 0.80%–1.37% that keep a ≥0.8% average margin and limit loss-making days to ≤5%. In backtests, these markups undercut a 1.5% bank benchmark by $1.33–$7.00 per $1,000 transferred. An out-of-sample 2025 test found that EUR and GBP losses doubled as the dollar fell 7–11%, which showed the markups need regular re-fitting.
