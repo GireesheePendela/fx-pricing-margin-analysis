@@ -1,6 +1,6 @@
 # FX Pricing Margin Analysis
 
-> **Finding:** markups based on volatility (0.80% for INR to 1.37% for MXN) beat a flat 1.5% bank markup by $1.33–$7.00 per $1,000 and still earn a ≥0.8% margin. Tested out of sample on 2025, they held for CAD, MXN and INR but lost money twice as often for EUR and GBP as the dollar fell.
+> **Finding:** markups based on volatility (0.80% for INR to 1.37% for MXN) beat a flat 1.5% bank markup by $1.33–$7.00 per $1,000 and still earn a ≥0.8% margin in-sample. Tested out of sample on 2025, they held for CAD, MXN and INR but lost money twice as often for EUR and GBP as the dollar fell.
 
 How much should a money-transfer provider mark up the mid-market rate on a USD → foreign currency transfer, given that the exchange rate can move against it before it covers the trade?
 
@@ -26,7 +26,7 @@ It then backtests that markup on every day in the sample and compares it with a 
 
 **Takeaways**
 - The markup a currency needs tracks its volatility. MXN is about 4× as volatile as INR, so it needs about 0.57 points more markup than the 0.8% target. INR needs no extra markup beyond the target.
-- In every currency, a volatility-based markup still undercuts a flat 1.5% bank markup, saving customers about $1.33–$7.00 per $1,000. The provider still averages a margin at or above 0.8%.
+- In every currency, a volatility-based markup still undercuts a flat 1.5% bank markup, saving customers about $1.33–$7.00 per $1,000. In-sample, the provider still averages a margin at or above 0.8%. Out of sample, EUR fell just short, at 0.77% in 2025.
 - A flat markup ignores risk. At 1.5%, the provider gives up price competitiveness in low-volatility currencies like INR and CAD, but has the least margin of safety in MXN.
 
 ## Out-of-sample test (fit 2023–2024, test 2025)
