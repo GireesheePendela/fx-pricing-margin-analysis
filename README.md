@@ -1,0 +1,60 @@
+# FX Pricing Margin Analysis
+
+How much should a money-transfer provider mark up the mid-market rate on a USD → foreign currency transfer, given that the exchange rate can move against it before it covers the trade?
+
+This project uses 2023–2025 daily ECB reference rates for **EUR, GBP, CAD, MXN and INR**. For each currency it estimates the smallest markup that:
+
+1. earns at least a **0.8% target margin**, and
+2. turns a transfer into a loss on **no more than 5% of days**, after a 2-business-day move in the exchange rate.
+
+It then backtests that markup on every day in the sample and compares it with a **1.5% bank-style markup**.
+
+## Results (2023-01-02 to 2025-10-01, 704 trading days)
+
+| Currency | Annualized vol | Recommended markup | Customer saving per $1,000 vs 1.5% | Backtest mean margin | Days with a loss |
+|---|---|---|---|---|---|
+| EUR | 7.4% | 1.03% | $4.69 | 1.00% | 5.0% |
+| GBP | 7.6% | 1.05% | $4.54 | 1.01% | 5.0% |
+| CAD | 5.9% | 0.86% | $6.40 | 0.87% | 5.0% |
+| MXN | 12.3% | 1.37% | $1.33 | 1.34% | 5.0% |
+| INR | 3.1% | 0.80% | $7.00 | 0.82% | 0.9% |
+
+![Recommended markup by currency](output/markup_by_currency.png)
+![21-day rolling volatility](output/rolling_volatility.png)
+
+**Takeaways**
+- The markup a currency needs tracks its volatility. MXN is about 4× as volatile as INR, so it needs about 0.57 points more markup than the 0.8% target. INR needs no extra markup beyond the target.
+- In every currency, a volatility-based markup still undercuts a flat 1.5% bank markup, saving customers about $1.33–$7.00 per $1,000. The provider still averages a margin at or above 0.8%.
+- A flat markup ignores risk. At 1.5%, the provider gives up price competitiveness in low-volatility currencies like INR and CAD, but has the least margin of safety in MXN.
+
+## Method
+
+- **Rates:** USD → X mid-market rates from the Frankfurter API, which serves ECB reference rates.
+- **Quote:** the customer receives `mid_t × (1 − markup)` units per USD.
+- **Cost:** the provider buys those units `h` business days later at `mid_{t+h}`. The realized margin is `1 − (1 − markup) × mid_t / mid_{t+h}`.
+- **Pricing rule:** let `q` be the 5th percentile of the historical `h`-day log move. The break-even markup is `1 − e^q`, and the recommended markup is `max(target, break-even)`.
+- **Backtest:** apply the recommended markup and the competitor markup to every day in the sample, and record the mean margin, the share of days below target and the share of days with a loss.
+
+## Assumptions and limitations
+
+- Mid-market is the ECB daily reference rate, one fixing per day. The model ignores intraday moves and bid/ask spreads in the interbank market.
+- The provider stays unhedged for a fixed 2 business days, then covers at that day's mid rate. It does not hedge with forwards and does not net customer flows in opposite directions.
+- Rates in the test period follow the same distribution as rates in the sample period. The markup is fitted and backtested on the same data, so this is in-sample.
+- The model has no transfer fees, payment-rail costs, volume tiers or customer price sensitivity. "Margin" here means FX margin only.
+- The 1.5% competitor markup is an illustrative bank benchmark, not a quote observed from any specific firm.
+- Every transfer is the same size, and transfers happen evenly across days.
+
+## Run it
+
+```bash
+pip install pandas numpy matplotlib
+python fx_pricing_analysis.py --start 2023-01-01 --end 2025-10-01 --currencies EUR GBP CAD MXN INR --target-margin 0.008 --competitor-markup 0.015
+```
+
+Optional settings: `--holding-days` (default 2), `--confidence` (default 0.95), `--output` (default `output`). Use `--demo` to run on synthetic rates if you only want to confirm the script works.
+
+Outputs go in `output/`: `pricing_table.csv`, `fx_rates.csv`, `markup_by_currency.png` and `rolling_volatility.png`.
+
+## Resume bullet
+
+> Built a Python model of FX transfer pricing on 704 days of ECB rates (2023–2025) for 5 currencies. It sets risk-adjusted markups of 0.80%–1.37% that keep a ≥0.8% average margin and limit loss-making days to ≤5%. In backtests, these markups undercut a 1.5% bank benchmark by $1.33–$7.00 per $1,000 transferred.
