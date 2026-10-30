@@ -48,6 +48,8 @@ def parse_args():
                    help="business days between quoting the customer and covering the trade")
     p.add_argument("--confidence", type=float, default=0.95,
                    help="share of trades that must not lose money after the FX move")
+    p.add_argument("--train-end", default=None,
+                   help="fit markups on dates up to this one and test on later dates (e.g. 2024-12-31)")
     p.add_argument("--output", default="output")
     p.add_argument("--demo", action="store_true", help="use synthetic rates (never for real results)")
     return p.parse_args()
@@ -97,6 +99,44 @@ def realized_margin(markup, log_move):
     return 1 - (1 - markup) * np.exp(-log_move)
 
 
+def recommend_markup(moves, target, confidence):
+    """Return (adverse quantile move, recommended markup) for a set of h-day log moves."""
+    # adverse move that is only exceeded on (1 - confidence) share of days
+    q = np.quantile(moves, 1 - confidence)
+    # markup that breaks even at that move: realized_margin(m, q) == 0
+    break_even = 1 - np.exp(q)
+    # earn at least the target, and lose money on at most (1 - confidence) of trades
+    return q, max(target, break_even)
+
+
+def out_of_sample(rates, target, competitor, h, confidence, train_end):
+    """Fit markups on dates up to train_end, then backtest them on later dates only."""
+    fwd_move = (np.log(rates).shift(-h) - np.log(rates)).dropna()
+    # drop the last h training quotes: their outcome falls inside the test period
+    train = fwd_move.loc[:train_end].iloc[:-h]
+    test = fwd_move.loc[fwd_move.index > pd.Timestamp(train_end)]
+    if train.empty or test.empty:
+        sys.exit(f"--train-end {train_end} leaves no training or no test data")
+
+    rows = []
+    for c in rates.columns:
+        _, markup = recommend_markup(train[c].values, target, confidence)
+        in_sample = realized_margin(markup, train[c].values)
+        ours = realized_margin(markup, test[c].values)
+        theirs = realized_margin(competitor, test[c].values)
+        rows.append({
+            "currency": c,
+            "train_markup": markup,
+            "train_pct_days_loss": (in_sample < 0).mean(),
+            "test_mean_margin": ours.mean(),
+            "test_pct_days_loss": (ours < 0).mean(),
+            "test_pct_days_below_target": (ours < target).mean(),
+            "test_competitor_mean_margin": theirs.mean(),
+        })
+    table = pd.DataFrame(rows).set_index("currency")
+    return table, (train.index[0], train.index[-1]), (test.index[0], test.index[-1])
+
+
 def analyze(rates, target, competitor, h, confidence):
     log_ret = np.log(rates).diff().dropna()
     # h-day forward move for a quote made on day t
@@ -105,12 +145,7 @@ def analyze(rates, target, competitor, h, confidence):
     rows = []
     for c in rates.columns:
         moves = fwd_move[c].values
-        # adverse move that is only exceeded on (1 - confidence) share of days
-        q = np.quantile(moves, 1 - confidence)
-        # markup that breaks even at that move: realized_margin(m, q) == 0
-        break_even = 1 - np.exp(q)
-        # earn at least the target, and lose money on at most (1 - confidence) of trades
-        markup = max(target, break_even)
+        q, markup = recommend_markup(moves, target, confidence)
         ours = realized_margin(markup, moves)
         theirs = realized_margin(competitor, moves)
         rows.append({
@@ -193,6 +228,15 @@ def main():
                   "backtest_mean_margin", "backtest_pct_days_loss", "competitor_mean_margin"]]
     print(show.to_string(float_format=lambda v: f"{v:.4f}"))
     print(f"\nWrote {out / 'pricing_table.csv'}, markup_by_currency.png, rolling_volatility.png")
+
+    if args.train_end:
+        oos, train_span, test_span = out_of_sample(rates, args.target_margin, args.competitor_markup,
+                                                   args.holding_days, args.confidence, args.train_end)
+        oos.round(6).to_csv(out / "out_of_sample.csv")
+        print(f"\nOut-of-sample: fit {train_span[0].date()} to {train_span[1].date()}, "
+              f"test {test_span[0].date()} to {test_span[1].date()}")
+        print(oos.to_string(float_format=lambda v: f"{v:.4f}"))
+        print(f"\nWrote {out / 'out_of_sample.csv'}")
 
 
 if __name__ == "__main__":
